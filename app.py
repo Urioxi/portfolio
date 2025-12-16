@@ -3,6 +3,7 @@ from flask_cors import CORS
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+from cloudinary.exceptions import NotFound
 import json
 import os
 from dotenv import load_dotenv
@@ -20,27 +21,46 @@ cloudinary.config(
     api_secret=os.getenv('CLOUDINARY_API_SECRET')
 )
 
-# Fichier JSON pour la galerie
-GALLERY_FILE = 'data.json'
+# Public ID du fichier JSON sur Cloudinary
+GALLERY_JSON_ID = 'portfolio/gallery_data'
 
 
 def load_gallery():
-    """Charge la liste des photos stockées dans le JSON."""
+    """Charge la liste des photos stockées dans le JSON sur Cloudinary."""
     try:
-        with open(GALLERY_FILE, 'r') as f:
-            data = json.load(f)
-            # Compat: accepter soit une liste simple, soit un dict {photos: []}
-            if isinstance(data, list):
-                return data
-            return data.get('photos', [])
-    except FileNotFoundError:
+        # Télécharger le JSON depuis Cloudinary
+        result = cloudinary.api.resource(GALLERY_JSON_ID, resource_type='raw')
+        json_data = json.loads(result['content'])
+        
+        # Compat: accepter soit une liste simple, soit un dict {photos: []}
+        if isinstance(json_data, list):
+            return json_data
+        return json_data.get('photos', [])
+    except NotFound:
+        # Fichier n'existe pas encore, retourner liste vide
+        return []
+    except Exception as e:
+        print(f"Erreur lors du chargement de la galerie: {e}")
         return []
 
 
 def save_gallery(gallery):
-    """Sauvegarde la liste des photos dans le JSON."""
-    with open(GALLERY_FILE, 'w') as f:
-        json.dump({'photos': gallery}, f, indent=2)
+    """Sauvegarde la liste des photos dans le JSON sur Cloudinary."""
+    try:
+        # Convertir en JSON string
+        json_str = json.dumps({'photos': gallery}, indent=2)
+        
+        # Upload/Update le fichier JSON sur Cloudinary
+        cloudinary.uploader.upload(
+            json_str.encode('utf-8'),
+            public_id=GALLERY_JSON_ID,
+            resource_type='raw',
+            overwrite=True,
+            format='json'
+        )
+    except Exception as e:
+        print(f"Erreur lors de la sauvegarde de la galerie: {e}")
+        raise
 
 @app.route('/')
 def index():
