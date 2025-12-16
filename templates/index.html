@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Portfolio Photos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8 max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8">Portfolio Photos</h1>
+    
+    <!-- Upload -->
+    <div class="mb-8 p-6 border-2 border-dashed border-gray-400 rounded-lg">
+        <h2 class="text-xl font-semibold mb-4">Ajouter une photo</h2>
+        <input type="file" id="imageInput" accept="image/*" class="mb-4">
+        <button id="uploadBtn" onclick="uploadImage()" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+            Upload
+        </button>
+        <p id="status" class="text-sm text-gray-600 mt-2"></p>
+    </div>
+    
+    <!-- Galerie -->
+    <div id="gallery" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Photos chargées dynamiquement -->
+    </div>
+</body>
+
+<script>
+async function loadGallery() {
+    const galleryDiv = document.getElementById('gallery');
+    galleryDiv.innerHTML = '<p class="text-gray-600">Chargement...</p>';
+
+    try {
+        const response = await fetch('/gallery');
+        const gallery = await response.json();
+        
+        galleryDiv.innerHTML = '';
+        if (!gallery.length) {
+            galleryDiv.innerHTML = '<p class="text-gray-600">Aucune photo pour le moment.</p>';
+            return;
+        }
+
+        gallery.forEach(photo => {
+            const img = document.createElement('img');
+            img.src = photo.url;
+            img.className = 'w-full h-64 object-cover rounded-lg shadow-md hover:shadow-lg transition-shadow';
+            img.alt = 'Photo portfolio';
+            img.loading = 'lazy';
+            
+            const div = document.createElement('div');
+            div.className = 'relative group';
+            div.appendChild(img);
+            galleryDiv.appendChild(div);
+        });
+    } catch (error) {
+        galleryDiv.innerHTML = '<p class="text-red-600">Impossible de charger la galerie.</p>';
+    }
+}
+
+async function uploadImage() {
+    const fileInput = document.getElementById('imageInput');
+    const status = document.getElementById('status');
+    const btn = document.getElementById('uploadBtn');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        status.textContent = 'Sélectionne une image avant d\'envoyer.';
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    status.textContent = 'Envoi en cours...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            status.textContent = 'Photo uploadée !';
+            fileInput.value = '';
+            loadGallery();
+        } else {
+            status.textContent = 'Erreur: ' + result.error;
+        }
+    } catch (error) {
+        status.textContent = 'Erreur: ' + error.message;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// Chargement initial
+loadGallery();
+</script>
+</html>
