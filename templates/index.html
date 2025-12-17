@@ -68,28 +68,64 @@ async function uploadImage() {
         return;
     }
     
-    const formData = new FormData();
-    formData.append('image', file);
-    
     status.textContent = 'Envoi en cours...';
     btn.disabled = true;
     
     try {
-        const response = await fetch('/upload', {
-            method: 'POST',
-            body: formData
-        });
-        const result = await response.json();
+        // 1. Obtenir la signature depuis le serveur
+        const sigResponse = await fetch('/get-signature');
+        const sigData = await sigResponse.json();
         
-        if (result.success) {
+        if (!sigResponse.ok) {
+            throw new Error(sigData.error || 'Erreur lors de la génération de la signature');
+        }
+        
+        // 2. Upload direct vers Cloudinary depuis le navigateur
+        const cloudinaryFormData = new FormData();
+        cloudinaryFormData.append('file', file);
+        cloudinaryFormData.append('api_key', sigData.api_key);
+        cloudinaryFormData.append('timestamp', sigData.timestamp);
+        cloudinaryFormData.append('signature', sigData.signature);
+        cloudinaryFormData.append('folder', sigData.folder);
+        
+        const uploadResponse = await fetch(
+            `https://api.cloudinary.com/v1_1/${sigData.cloud_name}/image/upload`,
+            {
+                method: 'POST',
+                body: cloudinaryFormData
+            }
+        );
+        
+        const uploadResult = await uploadResponse.json();
+        
+        if (!uploadResponse.ok) {
+            throw new Error(uploadResult.error?.message || 'Erreur lors de l\'upload vers Cloudinary');
+        }
+        
+        // 3. Enregistrer la photo dans la galerie
+        const addResponse = await fetch('/add-photo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                public_id: uploadResult.public_id,
+                created_at: uploadResult.created_at
+            })
+        });
+        
+        const addResult = await addResponse.json();
+        
+        if (addResult.success) {
             status.textContent = 'Photo uploadée !';
             fileInput.value = '';
             loadGallery();
         } else {
-            status.textContent = 'Erreur: ' + result.error;
+            status.textContent = 'Erreur: ' + addResult.error;
         }
     } catch (error) {
         status.textContent = 'Erreur: ' + error.message;
+        console.error('Erreur upload:', error);
     } finally {
         btn.disabled = false;
     }
