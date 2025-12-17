@@ -13,7 +13,7 @@
 ## Étape 2 : Préparer votre code sur GitHub
 
 Assurez-vous que votre code est sur GitHub :
-- Votre repo : `https://github.com/Urioxi/Photography-portfolio.git`
+- Votre repo : `https://github.com/Urioxi/portfolio.git`
 
 ## Étape 3 : Se connecter à PythonAnywhere
 
@@ -31,8 +31,8 @@ Dans le terminal Bash, tapez :
 
 ```bash
 cd ~
-git clone https://github.com/Urioxi/Photography-portfolio.git
-cd Photography-portfolio
+git clone https://github.com/Urioxi/portfolio.git
+cd portfolio
 ```
 
 ## Étape 6 : Créer un environnement virtuel
@@ -94,12 +94,12 @@ Si ça fonctionne, arrêtez avec `Ctrl + C`
 import sys
 
 # Ajouter le chemin de votre projet
-path = '/home/votre-username/Photography-portfolio'
+path = '/home/votre-username/portfolio'
 if path not in sys.path:
     sys.path.append(path)
 
 # Activer l'environnement virtuel
-activate_this = '/home/votre-username/Photography-portfolio/venv/bin/activate_this.py'
+activate_this = '/home/votre-username/portfolio/venv/bin/activate_this.py'
 with open(activate_this) as file_:
     exec(file_.read(), dict(__file__=activate_this))
 
@@ -125,7 +125,7 @@ if __name__ == "__main__":
 2. Dans la section **"Static files"**, ajoutez :
 
 **URL** : `/static/`  
-**Directory** : `/home/votre-username/Photography-portfolio/statics`
+**Directory** : `/home/votre-username/portfolio/statics`
 
 3. Cliquez sur **"Add a new static files mapping"**
 
@@ -151,7 +151,7 @@ Votre site est maintenant accessible à :
 ### Mettre à jour le code
 
 ```bash
-cd ~/Photography-portfolio
+cd ~/portfolio
 git pull
 source venv/bin/activate
 pip install --user -r requirements.txt
@@ -175,7 +175,7 @@ Dans la page **Web**, cliquez sur **"Reload"**
 
 ### Erreur "Environment variable not found"
 - Vérifiez que le fichier `.env` existe et contient les bonnes variables
-- Vérifiez le chemin dans le WSGI : `load_dotenv('/home/votre-username/Photography-portfolio/.env')`
+- Vérifiez le chemin dans le WSGI : `load_dotenv('/home/votre-username/portfolio/.env')`
 
 ### Les images ne s'affichent pas
 - Vérifiez la configuration des fichiers statiques dans la page Web

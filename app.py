@@ -162,5 +162,8 @@ def rebuild_gallery():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # Sur PythonAnywhere, on n'utilise pas cette partie
+    # L'app tourne via WSGI
+    # Pour tester, on vérifie juste que le code se charge
+    print("✓ Application Flask chargée avec succès !")
+    print("Sur PythonAnywhere, l'app tournera via WSGI, pas besoin de lancer python app.py")
