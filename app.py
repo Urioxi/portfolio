@@ -145,8 +145,12 @@ def hash_password(password):
 def create_user(username, password):
     """Crée un nouvel utilisateur."""
     users = load_users()
-    if username in users:
-        return False, "Nom d'utilisateur déjà pris"
+    username_lower = username.lower()
+
+    # Vérifier si le nom d'utilisateur existe déjà (insensible à la casse)
+    for existing_username in users:
+        if existing_username.lower() == username_lower:
+            return False, "Nom d'utilisateur déjà pris"
 
     users[username] = {
         'password': hash_password(password),
@@ -159,13 +163,22 @@ def create_user(username, password):
 def authenticate_user(username, password):
     """Authentifie un utilisateur."""
     users = load_users()
-    if username not in users:
+    username_lower = username.lower()
+
+    # Trouver l'utilisateur en ignorant la casse
+    actual_username = None
+    for existing_username in users:
+        if existing_username.lower() == username_lower:
+            actual_username = existing_username
+            break
+
+    if actual_username is None:
         return False, "Utilisateur non trouvé"
 
-    if users[username]['password'] != hash_password(password):
+    if users[actual_username]['password'] != hash_password(password):
         return False, "Mot de passe incorrect"
 
-    return True, users[username]
+    return True, users[actual_username]
 
 # Gestion des messages
 def load_messages():
@@ -247,6 +260,17 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def urioxi_required(f):
+    """Décorateur pour protéger les routes admin - accès limité exactement à 'Urioxi'."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        if session.get('username') != 'Urioxi':
+            return redirect(url_for('index'))  # Redirection silencieuse
+        return f(*args, **kwargs)
+    return decorated_function
+
 @app.route('/')
 def index():
     track_visit()
@@ -282,7 +306,7 @@ def logout():
     return redirect(url_for('index'))
 
 @app.route('/admin/stats')
-@login_required
+@urioxi_required
 def admin_stats():
     """Page de statistiques admin."""
     gallery = load_gallery()
@@ -454,6 +478,9 @@ def register():
 
         if not username or not password:
             return render_template('register.html', error='Tous les champs sont requis')
+
+        if ' ' in username:
+            return render_template('register.html', error='Le nom d\'utilisateur ne peut pas contenir d\'espaces')
 
         if password != confirm_password:
             return render_template('register.html', error='Les mots de passe ne correspondent pas')
