@@ -9,6 +9,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
+    <!-- Données de session pour JavaScript -->
+    <div id="session-data" data-user-logged-in="{% if 'user_logged_in' in session %}true{% else %}false{% endif %}" style="display: none;"></div>
+
     <!-- Header -->
     <header class="bg-white shadow-md sticky top-0 z-[100] w-full">
         <nav class="container mx-auto px-4 py-4">
@@ -151,12 +154,8 @@
             });
 
             // Gestion des messages non lus
-            let userLoggedIn = false;
-            {% if 'user_logged_in' in session %}
-            userLoggedIn = true;
-            {% endif %}
+            const userLoggedIn = document.getElementById('session-data').dataset.userLoggedIn === 'true';
 
-            // Vérifier si l'utilisateur est connecté pour activer les fonctionnalités de messagerie
             if (userLoggedIn) {
                 async function updateUnreadBadge() {
                     try {
