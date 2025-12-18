@@ -1,5 +1,11 @@
 # Portfolio Photographique
 
+## 🔐 Sécurité - IMPORTANT
+
+**NE COMMITEZ JAMAIS** le fichier `.env` sur GitHub ! Il contient des mots de passe et des clés API sensibles.
+
+- Lisez `CONFIG_EXAMPLE.md` pour les instructions de configuration sécurisée
+- Le fichier `.env` est dans `.gitignore` et ne sera pas commité
 
 ### Backend
 - **Flask** : Framework web Python pour créer l'API et servir les pages HTML
