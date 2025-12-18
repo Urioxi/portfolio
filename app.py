@@ -22,8 +22,7 @@ app = Flask(__name__, static_folder='statics', template_folder='templates')
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 CORS(app)
 
-# Mot de passe admin
-ADMIN_PASSWORD = 'admin123'
+admin_password=os.getenv('ADMIN_PASSWORD')
 
 # Config Cloudinary
 cloudinary.config(
@@ -34,7 +33,6 @@ cloudinary.config(
 
 # Fichier JSON local (sur PythonAnywhere, on stocke localement car les connexions HTTPS sortantes sont bloquées)
 GALLERY_FILE = 'data.json'
-STATS_FILE = 'stats.json'
 
 
 def load_gallery():
@@ -48,23 +46,11 @@ def load_gallery():
             else:
                 photos = data.get('photos', [])
             
-            # Migration : convertir l'ancien format vers le nouveau
+            # Migration : ajouter une catégorie par défaut aux photos qui n'en ont pas
             updated = False
             for photo in photos:
-                # Si ancien format avec 'category' (string), convertir en 'categories' (list)
-                if 'category' in photo and 'categories' not in photo:
-                    photo['categories'] = [photo['category']] if photo['category'] else ['Non catégorisé']
-                    updated = True
-                # Si pas de catégories du tout, ajouter par défaut
-                elif 'categories' not in photo:
-                    photo['categories'] = ['Non catégorisé']
-                    updated = True
-                # S'assurer qu'il y a toujours un texte descriptif et un titre
-                if 'description' not in photo:
-                    photo['description'] = ''
-                    updated = True
-                if 'title' not in photo:
-                    photo['title'] = ''
+                if 'category' not in photo:
+                    photo['category'] = 'Non catégorisé'
                     updated = True
             
             if updated:
@@ -93,58 +79,9 @@ def get_categories():
     gallery = load_gallery()
     categories = set()
     for photo in gallery:
-        # Support ancien format (string) et nouveau format (list)
-        if photo.get('categories'):
-            categories.update(photo['categories'])
-        elif photo.get('category'):
+        if photo.get('category'):
             categories.add(photo['category'])
     return sorted(list(categories))
-
-def load_stats():
-    """Charge les statistiques de visites."""
-    try:
-        with open(STATS_FILE, 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {
-            'unique_visits': set(),
-            'total_visits': 0
-        }
-
-def save_stats(stats):
-    """Sauvegarde les statistiques de visites."""
-    # Convertir le set en list pour JSON
-    stats_to_save = {
-        'unique_visits': list(stats['unique_visits']),
-        'total_visits': stats['total_visits']
-    }
-    with open(STATS_FILE, 'w') as f:
-        json.dump(stats_to_save, f, indent=2)
-
-def track_visit():
-    """Enregistre une visite unique."""
-    if not session.get('visitor_id'):
-        # Créer un ID unique pour ce visiteur
-        session['visitor_id'] = str(uuid.uuid4())
-    
-    stats = load_stats()
-    # Convertir la list en set pour les opérations
-    if isinstance(stats['unique_visits'], list):
-        stats['unique_visits'] = set(stats['unique_visits'])
-    
-    visitor_id = session.get('visitor_id')
-    if visitor_id not in stats['unique_visits']:
-        stats['unique_visits'].add(visitor_id)
-    
-    stats['total_visits'] = stats.get('total_visits', 0) + 1
-    save_stats(stats)
-
-def get_unique_visits_count():
-    """Retourne le nombre de visites uniques."""
-    stats = load_stats()
-    if isinstance(stats['unique_visits'], list):
-        return len(stats['unique_visits'])
-    return len(stats['unique_visits'])
 
 def login_required(f):
     """Décorateur pour protéger les routes admin."""
@@ -157,26 +94,19 @@ def login_required(f):
 
 @app.route('/')
 def index():
-    track_visit()
     return render_template('index.html')
 
 @app.route('/gallery-page')
 def gallery_page():
     """Page galerie publique avec filtrage par catégorie."""
-    track_visit()
     return render_template('gallery.html')
-
-@app.route('/perso')
-def perso():
-    """Page personnelle."""
-    return render_template('perso.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Page de connexion admin."""
     if request.method == 'POST':
         password = request.form.get('password', '')
-        if password == ADMIN_PASSWORD:
+        if password == admin_password:
             session['logged_in'] = True
             return redirect(url_for('admin_stats'))
         else:
@@ -195,20 +125,15 @@ def admin_stats():
     """Page de statistiques admin."""
     gallery = load_gallery()
     categories = get_categories()
-    unique_visits = get_unique_visits_count()
     
     stats = {
         'total_photos': len(gallery),
         'categories': len(categories),
-        'unique_visits': unique_visits,
         'photos_by_category': {}
     }
     
     for category in categories:
-        stats['photos_by_category'][category] = len([
-            p for p in gallery 
-            if category in (p.get('categories') or [p.get('category')] if p.get('category') else [])
-        ])
+        stats['photos_by_category'][category] = len([p for p in gallery if p.get('category') == category])
     
     return render_template('admin_stats.html', stats=stats, categories=categories, gallery=gallery)
 
@@ -267,9 +192,7 @@ def add_photo():
             'public_id': public_id,
             'url': cloudinary.CloudinaryImage(public_id).build_url(secure=True),
             'uploaded_at': uploaded_at,
-            'categories': [category] if category else ['Non catégorisé'],
-            'description': '',
-            'title': ''
+            'category': category
         }
         gallery.append(new_photo)
         save_gallery(gallery)
@@ -281,58 +204,6 @@ def add_photo():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/delete-photo/<photo_id>', methods=['DELETE'])
-@login_required
-def delete_photo(photo_id):
-    """Supprime une photo de la galerie."""
-    try:
-        gallery = load_gallery()
-        gallery = [p for p in gallery if p.get('id') != photo_id]
-        save_gallery(gallery)
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/update-photo/<photo_id>', methods=['PUT'])
-@login_required
-def update_photo(photo_id):
-    """Met à jour les catégories et/ou la description d'une photo."""
-    try:
-        data = request.json
-        gallery = load_gallery()
-        
-        for photo in gallery:
-            if photo.get('id') == photo_id:
-                if 'categories' in data:
-                    photo['categories'] = data['categories']
-                if 'description' in data:
-                    photo['description'] = data['description']
-                if 'title' in data:
-                    photo['title'] = data['title']
-                save_gallery(gallery)
-                return jsonify({'success': True, 'photo': photo})
-        
-        return jsonify({'error': 'Photo non trouvée'}), 404
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/create-category', methods=['POST'])
-@login_required
-def create_category():
-    """Crée une nouvelle catégorie (juste pour la liste, pas de modification de photos)."""
-    try:
-        data = request.json
-        category_name = data.get('name', '').strip()
-        
-        if not category_name:
-            return jsonify({'error': 'Nom de catégorie requis'}), 400
-        
-        # Les catégories sont automatiquement créées quand on les utilise
-        # Cette route sert juste à valider
-        return jsonify({'success': True, 'category': category_name})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 @app.route('/gallery')
 def get_gallery():
     """API pour récupérer la galerie, avec filtrage optionnel par catégorie."""
@@ -340,8 +211,7 @@ def get_gallery():
     gallery = load_gallery()
     
     if category:
-        # Support ancien et nouveau format
-        gallery = [p for p in gallery if category in (p.get('categories') or [p.get('category')] if p.get('category') else [])]
+        gallery = [p for p in gallery if p.get('category') == category]
     
     return jsonify(gallery)
 
@@ -385,6 +255,8 @@ def rebuild_gallery():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    # Pour tester en local
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='127.0.0.1', port=port, debug=True)
+    # Sur PythonAnywhere, on n'utilise pas cette partie
+    # L'app tourne via WSGI
+    # Pour tester, on vérifie juste que le code se charge
+    print("✓ Application Flask chargée avec succès !")
+    print("Sur PythonAnywhere, l'app tournera via WSGI, pas besoin de lancer python app.py")
