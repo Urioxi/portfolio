@@ -8,4 +8,8 @@ stats.json
 users.json
 messages.json
 
+# Documentation (sauf README.md)
+*.md
+!README.md
+
 
