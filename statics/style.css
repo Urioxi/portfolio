@@ -61,3 +61,65 @@ html {
 .gallery-item {
     animation: fadeIn 0.5s ease-out;
 }
+
+/* Mobile menu animations */
+#mobileMenu {
+    transition: all 0.3s ease-in-out;
+    max-height: 0;
+    overflow: hidden;
+}
+
+#mobileMenu:not(.hidden) {
+    max-height: 500px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    /* Ajuster le header pour mobile */
+    header nav {
+        padding: 1rem;
+    }
+
+    /* Espacement pour éviter la barre des tâches */
+    body {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Slider mobile */
+    #slider {
+        margin-top: 0 !important;
+    }
+
+    /* Boutons du slider plus grands sur mobile */
+    #prevBtn, #nextBtn {
+        width: 48px;
+        height: 48px;
+        font-size: 18px;
+    }
+
+    /* Indicateurs plus grands sur mobile */
+    #sliderIndicators button {
+        width: 12px;
+        height: 12px;
+    }
+}
+
+/* Safe area pour appareils avec encoches */
+@supports (padding: max(0px)) {
+    body {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    #slider {
+        padding-top: env(safe-area-inset-top);
+    }
+}
+
+/* Améliorer l'accessibilité mobile */
+@media (hover: none) and (pointer: coarse) {
+    /* Styles spécifiques pour les écrans tactiles */
+    button, a {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
