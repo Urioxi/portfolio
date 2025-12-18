@@ -23,8 +23,8 @@ app = Flask(__name__, static_folder='statics', template_folder='templates')
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 CORS(app)
 
-# Mot de passe admin (défini dans .env)
-ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
+# Mot de passe admin (défini dans .env, valeur par défaut pour dev)
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
 # Config Cloudinary
 cloudinary.config(
     cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
@@ -36,6 +36,8 @@ cloudinary.config(
 # Fichier JSON local (sur PythonAnywhere, on stocke localement car les connexions HTTPS sortantes sont bloquées)
 GALLERY_FILE = 'data.json'
 STATS_FILE = 'stats.json'
+USERS_FILE = 'users.json'
+MESSAGES_FILE = 'messages.json'
 
 
 def load_gallery():
@@ -122,6 +124,95 @@ def save_stats(stats):
     with open(STATS_FILE, 'w') as f:
         json.dump(stats_to_save, f, indent=2)
 
+# Gestion des utilisateurs
+def load_users():
+    """Charge les utilisateurs depuis le JSON."""
+    try:
+        with open(USERS_FILE, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+def save_users(users):
+    """Sauvegarde les utilisateurs dans le JSON."""
+    with open(USERS_FILE, 'w') as f:
+        json.dump(users, f, indent=2)
+
+def hash_password(password):
+    """Hash un mot de passe avec SHA256."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def create_user(username, password):
+    """Crée un nouvel utilisateur."""
+    users = load_users()
+    if username in users:
+        return False, "Nom d'utilisateur déjà pris"
+
+    users[username] = {
+        'password': hash_password(password),
+        'created_at': datetime.now().isoformat(),
+        'is_admin': False
+    }
+    save_users(users)
+    return True, "Compte créé avec succès"
+
+def authenticate_user(username, password):
+    """Authentifie un utilisateur."""
+    users = load_users()
+    if username not in users:
+        return False, "Utilisateur non trouvé"
+
+    if users[username]['password'] != hash_password(password):
+        return False, "Mot de passe incorrect"
+
+    return True, users[username]
+
+# Gestion des messages
+def load_messages():
+    """Charge les messages depuis le JSON."""
+    try:
+        with open(MESSAGES_FILE, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+def save_messages(messages):
+    """Sauvegarde les messages dans le JSON."""
+    with open(MESSAGES_FILE, 'w') as f:
+        json.dump(messages, f, indent=2)
+
+def get_user_messages(username):
+    """Récupère les messages d'un utilisateur."""
+    messages = load_messages()
+    user_messages = [msg for msg in messages if msg['to'] == username]
+    return user_messages
+
+def get_unread_count(username):
+    """Compte les messages non lus d'un utilisateur."""
+    messages = get_user_messages(username)
+    return len([msg for msg in messages if not msg.get('read', False)])
+
+def send_message(from_user, to_user, subject, content, photo_id=None):
+    """Envoie un message."""
+    users = load_users()
+    if to_user not in users:
+        return False, "Destinataire non trouvé"
+
+    messages = load_messages()
+    message = {
+        'id': str(uuid.uuid4()),
+        'from': from_user,
+        'to': to_user,
+        'subject': subject,
+        'content': content,
+        'photo_id': photo_id,
+        'timestamp': datetime.now().isoformat(),
+        'read': False
+    }
+    messages.append(message)
+    save_messages(messages)
+    return True, "Message envoyé"
+
 def track_visit():
     """Enregistre une visite unique."""
     if not session.get('visitor_id'):
@@ -161,13 +252,13 @@ def index():
     track_visit()
     return render_template('index.html')
 
-@app.route('/gallery-page')
+@app.route('/gallerie')
 def gallery_page():
     """Page galerie publique avec filtrage par catégorie."""
     track_visit()
     return render_template('gallery.html')
 
-@app.route('/perso')
+@app.route('/apropos')
 def perso():
     """Page personnelle."""
     return render_template('perso.html')
@@ -351,6 +442,111 @@ def get_categories_api():
     """API pour récupérer toutes les catégories."""
     categories = get_categories()
     return jsonify(categories)
+
+# Routes utilisateur
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """Page d'inscription utilisateur."""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+
+        if not username or not password:
+            return render_template('register.html', error='Tous les champs sont requis')
+
+        if password != confirm_password:
+            return render_template('register.html', error='Les mots de passe ne correspondent pas')
+
+        if len(password) < 6:
+            return render_template('register.html', error='Le mot de passe doit faire au moins 6 caractères')
+
+        success, message = create_user(username, password)
+        if success:
+            session['user_logged_in'] = True
+            session['username'] = username
+            return redirect(url_for('index'))
+        else:
+            return render_template('register.html', error=message)
+
+    return render_template('register.html')
+
+@app.route('/user/login', methods=['GET', 'POST'])
+def user_login():
+    """Page de connexion utilisateur."""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+
+        if not username or not password:
+            return render_template('user_login.html', error='Tous les champs sont requis')
+
+        success, user_data = authenticate_user(username, password)
+        if success:
+            session['user_logged_in'] = True
+            session['username'] = username
+            return redirect(url_for('index'))
+        else:
+            return render_template('user_login.html', error=user_data)
+
+    return render_template('user_login.html')
+
+@app.route('/user/logout')
+def user_logout():
+    """Déconnexion utilisateur."""
+    session.pop('user_logged_in', None)
+    session.pop('username', None)
+    return redirect(url_for('index'))
+
+# Routes messagerie
+@app.route('/messages')
+def messages():
+    """Page de messagerie."""
+    if not session.get('user_logged_in'):
+        return redirect(url_for('user_login'))
+
+    username = session['username']
+    user_messages = get_user_messages(username)
+    # Marquer les messages comme lus quand on ouvre la page
+    messages_data = load_messages()
+    for msg in messages_data:
+        if msg['to'] == username and not msg.get('read', False):
+            msg['read'] = True
+    save_messages(messages_data)
+
+    # Récupérer la liste des utilisateurs pour envoyer des messages
+    users = load_users()
+    other_users = [u for u in users.keys() if u != username]
+
+    return render_template('messages.html', messages=user_messages, users=other_users)
+
+@app.route('/send-message', methods=['POST'])
+def send_message_route():
+    """Envoie un message."""
+    if not session.get('user_logged_in'):
+        return jsonify({'success': False, 'error': 'Non connecté'})
+
+    from_user = session['username']
+    to_user = request.form.get('to_user')
+    subject = request.form.get('subject')
+    content = request.form.get('content')
+    photo_id = request.form.get('photo_id')
+
+    if not to_user or not subject or not content:
+        return jsonify({'success': False, 'error': 'Tous les champs sont requis'})
+
+    success, message = send_message(from_user, to_user, subject, content, photo_id)
+    return jsonify({'success': success, 'message': message})
+
+@app.route('/api/messages/unread')
+def get_unread_messages():
+    """API pour récupérer le nombre de messages non lus."""
+    if not session.get('user_logged_in'):
+        return jsonify({'unread': 0})
+
+    username = session['username']
+    unread_count = get_unread_count(username)
+    return jsonify({'unread': unread_count})
 
 @app.route('/rebuild-gallery', methods=['POST'])
 def rebuild_gallery():

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messagerie - Portfolio Photos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="data:,">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800">Messagerie</h1>
+                <a href="{{ url_for('index') }}" class="text-blue-600 hover:text-blue-800">← Retour à l'accueil</a>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Liste des messages -->
+                <div class="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4">Mes messages</h2>
+
+                    {% if messages %}
+                    <div class="space-y-4">
+                        {% for message in messages %}
+                        <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <span class="font-medium text-gray-800">De: {{ message.from }}</span>
+                                    <span class="text-gray-500 text-sm ml-4">
+                                        {{ message.timestamp[:10] }} à {{ message.timestamp[11:16] }}
+                                    </span>
+                                </div>
+                                {% if not message.read %}
+                                <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">Nouveau</span>
+                                {% endif %}
+                            </div>
+                            <h3 class="font-medium text-gray-800 mb-2">{{ message.subject }}</h3>
+                            <p class="text-gray-600 mb-3">{{ message.content[:100] }}{% if message.content|length > 100 %}...{% endif %}</p>
+                            {% if message.photo_id %}
+                            <div class="mt-2">
+                                <span class="text-sm text-blue-600">📎 Photo attachée</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-8 text-gray-500">
+                        <p>📭 Aucun message pour le moment</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Formulaire d'envoi -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4">Nouveau message</h2>
+
+                    <form id="messageForm" class="space-y-4">
+                        <div>
+                            <label for="to_user" class="block text-sm font-medium text-gray-700 mb-1">
+                                Destinataire
+                            </label>
+                            <select id="to_user" name="to_user" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Choisir un destinataire</option>
+                                {% for user in users %}
+                                <option value="{{ user }}">{{ user }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="subject" class="block text-sm font-medium text-gray-700 mb-1">
+                                Sujet
+                            </label>
+                            <input type="text" id="subject" name="subject" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+
+                        <div>
+                            <label for="content" class="block text-sm font-medium text-gray-700 mb-1">
+                                Message
+                            </label>
+                            <textarea id="content" name="content" rows="6" required
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                        </div>
+
+                        <div>
+                            <label for="photo_id" class="block text-sm font-medium text-gray-700 mb-1">
+                                Photo à attacher (optionnel)
+                            </label>
+                            <select id="photo_id" name="photo_id"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Aucune photo</option>
+                                <!-- Les photos seront chargées dynamiquement -->
+                            </select>
+                        </div>
+
+                        <button type="submit"
+                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-200">
+                            📤 Envoyer le message
+                        </button>
+                    </form>
+
+                    <div id="messageResult" class="mt-4 hidden">
+                        <!-- Résultat de l'envoi -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Charger les photos pour la sélection
+        async function loadPhotos() {
+            try {
+                const response = await fetch('/gallery');
+                const data = await response.json();
+                const photoSelect = document.getElementById('photo_id');
+
+                data.photos.forEach(photo => {
+                    const option = document.createElement('option');
+                    option.value = photo.id;
+                    option.textContent = photo.title || `Photo ${photo.id.slice(0, 8)}`;
+                    photoSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Erreur lors du chargement des photos:', error);
+            }
+        }
+
+        // Gestionnaire d'envoi de message
+        document.getElementById('messageForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const resultDiv = document.getElementById('messageResult');
+
+            try {
+                const response = await fetch('/send-message', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                resultDiv.className = data.success ? 'mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded' : 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
+                resultDiv.textContent = data.message;
+                resultDiv.classList.remove('hidden');
+
+                if (data.success) {
+                    e.target.reset();
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
+                }
+            } catch (error) {
+                resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
+                resultDiv.textContent = 'Erreur lors de l\'envoi';
+                resultDiv.classList.remove('hidden');
+            }
+        });
+
+        // Charger les photos au démarrage
+        loadPhotos();
+    </script>
+</body>
+</html>

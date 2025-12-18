@@ -18,13 +18,34 @@
                 </a>
 
                 <!-- Menu desktop -->
-                <div class="hidden md:flex gap-4">
+                <div class="hidden md:flex gap-4 items-center">
                     <a href="{{ url_for('index') }}" class="text-gray-700 hover:text-blue-600 transition">Accueil</a>
                     <a href="{{ url_for('gallery_page') }}" class="text-gray-700 hover:text-blue-600 transition">Galerie</a>
                     <a href="{{ url_for('perso') }}" class="text-gray-700 hover:text-blue-600 transition">À propos</a>
-                    {% if session.get('logged_in') %}
-                    <a href="{{ url_for('admin_stats') }}" class="text-blue-600 hover:text-blue-800 transition">Admin</a>
-                    <a href="{{ url_for('logout') }}" class="text-red-600 hover:text-red-800 transition">Déconnexion</a>
+
+                    <!-- Utilisateur connecté -->
+                    {% if 'user_logged_in' in session %}
+                    <div class="flex items-center gap-4">
+                        <div class="relative">
+                            <a href="{{ url_for('messages') }}" class="text-gray-700 hover:text-blue-600 transition flex items-center">
+                                💬 Messagerie
+                                <span id="unreadBadge" class="hidden ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full"></span>
+                            </a>
+                        </div>
+                        <span class="text-gray-600">👤 {{ session.username }}</span>
+                        <a href="{{ url_for('user_logout') }}" class="text-red-600 hover:text-red-800 transition">Déconnexion</a>
+                    </div>
+                    {% else %}
+                    <div class="flex gap-4">
+                        <a href="{{ url_for('register') }}" class="text-green-600 hover:text-green-800 transition">📝 S'inscrire</a>
+                        <a href="{{ url_for('user_login') }}" class="text-blue-600 hover:text-blue-800 transition">🔐 Se connecter</a>
+                    </div>
+                    {% endif %}
+
+                    <!-- Admin (si connecté en tant qu'admin) -->
+                    {% if 'logged_in' in session %}
+                    <a href="{{ url_for('admin_stats') }}" class="text-purple-600 hover:text-purple-800 transition ml-4">⚙️ Admin</a>
+                    <a href="{{ url_for('logout') }}" class="text-red-600 hover:text-red-800 transition">Déconnexion Admin</a>
                     {% endif %}
                 </div>
 
@@ -44,11 +65,32 @@
                     <a href="{{ url_for('index') }}" class="text-gray-700 hover:text-blue-600 transition px-2 py-2 rounded hover:bg-gray-50">Accueil</a>
                     <a href="{{ url_for('gallery_page') }}" class="text-gray-700 hover:text-blue-600 transition px-2 py-2 rounded hover:bg-gray-50">Galerie</a>
                     <a href="{{ url_for('perso') }}" class="text-gray-700 hover:text-blue-600 transition px-2 py-2 rounded hover:bg-gray-50">À propos</a>
-                    {% if session.get('logged_in') %}
-                    <a href="{{ url_for('admin_stats') }}" class="text-blue-600 hover:text-blue-800 transition px-2 py-2 rounded hover:bg-blue-50">Admin</a>
-                    <a href="{{ url_for('logout') }}" class="text-red-600 hover:text-red-800 transition px-2 py-2 rounded hover:bg-red-50">Déconnexion</a>
+
+                    <!-- Utilisateur connecté -->
+                    {% if 'user_logged_in' in session %}
+                    <div class="border-t border-gray-200 pt-3 mt-3">
+                        <a href="{{ url_for('messages') }}" class="text-gray-700 hover:text-blue-600 transition px-2 py-2 rounded hover:bg-gray-50 flex items-center">
+                            💬 Messagerie
+                            <span id="mobileUnreadBadge" class="hidden ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full"></span>
+                        </a>
+                        <div class="px-2 py-1 text-gray-600 text-sm">👤 {{ session.username }}</div>
+                        <a href="{{ url_for('user_logout') }}" class="text-red-600 hover:text-red-800 transition px-2 py-2 rounded hover:bg-red-50">Déconnexion</a>
+                    </div>
                     {% else %}
-                    <a href="{{ url_for('login') }}" class="text-blue-600 hover:text-blue-800 transition px-2 py-2 rounded hover:bg-blue-50">🔐 Connexion Admin</a>
+                    <div class="border-t border-gray-200 pt-3 mt-3">
+                        <a href="{{ url_for('register') }}" class="text-green-600 hover:text-green-800 transition px-2 py-2 rounded hover:bg-green-50">📝 S'inscrire</a>
+                        <a href="{{ url_for('user_login') }}" class="text-blue-600 hover:text-blue-800 transition px-2 py-2 rounded hover:bg-blue-50">🔐 Se connecter</a>
+                    </div>
+                    {% endif %}
+
+                    <!-- Admin -->
+                    {% if 'logged_in' in session %}
+                    <div class="border-t border-gray-200 pt-3 mt-3">
+                        <a href="{{ url_for('admin_stats') }}" class="text-purple-600 hover:text-purple-800 transition px-2 py-2 rounded hover:bg-purple-50">⚙️ Admin</a>
+                        <a href="{{ url_for('logout') }}" class="text-red-600 hover:text-red-800 transition px-2 py-2 rounded hover:bg-red-50">Déconnexion Admin</a>
+                    </div>
+                    {% else %}
+                    <a href="{{ url_for('login') }}" class="text-blue-600 hover:text-blue-800 transition px-2 py-2 rounded hover:bg-blue-50 border-t border-gray-200 pt-3 mt-3">🔐 Connexion Admin</a>
                     {% endif %}
                 </div>
             </div>
@@ -74,13 +116,14 @@
 
     {% block scripts %}
     <script>
-        // Menu mobile
         document.addEventListener('DOMContentLoaded', function() {
+            // Menu mobile
             const mobileMenuBtn = document.getElementById('mobileMenuBtn');
             const mobileMenu = document.getElementById('mobileMenu');
 
             if (mobileMenuBtn && mobileMenu) {
-                mobileMenuBtn.addEventListener('click', function() {
+                mobileMenuBtn.addEventListener('click', function(event) {
+                    event.stopPropagation(); // Empêcher la propagation de l'événement
                     const isHidden = mobileMenu.classList.contains('hidden');
                     if (isHidden) {
                         mobileMenu.classList.remove('hidden');
@@ -96,18 +139,56 @@
                         mobileMenu.classList.add('hidden');
                     });
                 });
+            }
 
-                // Fermer le menu quand on clique en dehors
-                document.addEventListener('click', function(event) {
+            // Fermer le menu quand on clique en dehors (sur le document entier)
+            document.addEventListener('click', function(event) {
+                if (mobileMenuBtn && mobileMenu) {
                     if (!mobileMenu.contains(event.target) && !mobileMenuBtn.contains(event.target)) {
                         mobileMenu.classList.add('hidden');
                     }
-                });
+                }
+            });
+
+            // Gestion des messages non lus
+            let userLoggedIn = false;
+            {% if 'user_logged_in' in session %}
+            userLoggedIn = true;
+            {% endif %}
+
+            // Vérifier si l'utilisateur est connecté pour activer les fonctionnalités de messagerie
+            if (userLoggedIn) {
+                async function updateUnreadBadge() {
+                    try {
+                        const response = await fetch('/api/messages/unread');
+                        const data = await response.json();
+
+                        const desktopBadge = document.getElementById('unreadBadge');
+                        const mobileBadge = document.getElementById('mobileUnreadBadge');
+
+                        if (desktopBadge && mobileBadge && data.unread > 0) {
+                            const count = data.unread > 99 ? '99+' : data.unread.toString();
+                            desktopBadge.textContent = count;
+                            mobileBadge.textContent = count;
+                            desktopBadge.classList.remove('hidden');
+                            mobileBadge.classList.remove('hidden');
+                        } else if (desktopBadge && mobileBadge) {
+                            desktopBadge.classList.add('hidden');
+                            mobileBadge.classList.add('hidden');
+                        }
+                    } catch (error) {
+                        console.error('Erreur lors de la mise à jour des badges:', error);
+                    }
+                }
+
+                // Mettre à jour les badges au chargement de la page
+                updateUnreadBadge();
+
+                // Mettre à jour les badges toutes les 30 secondes
+                setInterval(updateUnreadBadge, 30000);
             }
         });
     </script>
     {% endblock %}
 </body>
 </html>
-
-
