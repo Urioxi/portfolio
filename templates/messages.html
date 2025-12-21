@@ -230,7 +230,7 @@
         const dropZone = document.getElementById('photoDropZone');
         const fileInput = document.getElementById('photoFile');
         const selectedFileName = document.getElementById('selectedFileName');
-        const photoIdInput = document.getElementById('photo_id');
+        const photoIdsInput = document.getElementById('photo_ids');
 
         // Événements pour la zone de drop
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -297,9 +297,9 @@
 
             // Pour l'instant, on stocke juste le nom du fichier
             // Dans un vrai système, on uploaderait le fichier et récupérerait un ID
-            const currentIds = photoIdInput.value ? photoIdInput.value.split(',') : [];
+            const currentIds = photoIdsInput.value ? photoIdsInput.value.split(',') : [];
             currentIds.push(file.name);
-            photoIdInput.value = currentIds.join(',');
+            photoIdsInput.value = currentIds.join(',');
 
             updateSelectedFilesDisplay();
         }
@@ -319,15 +319,15 @@
             }
 
             if (validFiles.length > 0) {
-                const currentIds = photoIdInput.value ? photoIdInput.value.split(',') : [];
+                const currentIds = photoIdsInput.value ? photoIdsInput.value.split(',') : [];
                 validFiles.forEach(file => currentIds.push(file.name));
-                photoIdInput.value = currentIds.join(',');
+                photoIdsInput.value = currentIds.join(',');
                 updateSelectedFilesDisplay();
             }
         }
 
         function updateSelectedFilesDisplay() {
-            const ids = photoIdInput.value.split(',').filter(id => id.trim());
+            const ids = photoIdsInput.value.split(',').filter(id => id.trim());
             if (ids.length > 0) {
                 selectedFileName.textContent = `${ids.length} fichier(s) sélectionné(s): ${ids.join(', ')}`;
                 selectedFileName.classList.remove('hidden');
@@ -340,15 +340,21 @@
 document.getElementById('messageForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    console.log('Tentative d\'envoi de message');
+
     // Validation supplémentaire pour s'assurer que to_user est défini
     let toUserValue = '';
     if (isAdmin) {
         toUserValue = document.getElementById('to_user').value;
+        console.log('Admin - to_user:', toUserValue);
     } else {
-        toUserValue = document.getElementById('userRecipientSelect').value;
+        const selectElement = document.getElementById('userRecipientSelect');
+        toUserValue = selectElement ? selectElement.value : '';
+        console.log('User normal - to_user:', toUserValue, 'select element:', selectElement);
     }
 
     if (!toUserValue.trim()) {
+        console.log('Validation échouée: pas de destinataire');
         const resultDiv = document.getElementById('messageResult');
         resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
         resultDiv.textContent = 'Veuillez sélectionner un destinataire';
@@ -360,6 +366,8 @@ document.getElementById('messageForm').addEventListener('submit', async (e) => {
     // S'assurer que to_user est dans le FormData
     formData.set('to_user', toUserValue);
 
+    console.log('Envoi du message à:', toUserValue);
+
     const resultDiv = document.getElementById('messageResult');
 
     try {
@@ -369,6 +377,7 @@ document.getElementById('messageForm').addEventListener('submit', async (e) => {
         });
 
         const data = await response.json();
+        console.log('Réponse du serveur:', data);
 
         resultDiv.className = data.success ? 'mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded' : 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
         resultDiv.textContent = data.message;
@@ -376,11 +385,15 @@ document.getElementById('messageForm').addEventListener('submit', async (e) => {
 
         if (data.success) {
             e.target.reset();
+            // Remettre à zéro les fichiers sélectionnés
+            document.getElementById('photo_ids').value = '';
+            document.getElementById('selectedFileName').classList.add('hidden');
             setTimeout(() => {
                 location.reload();
             }, 2000);
         }
     } catch (error) {
+        console.error('Erreur lors de l\'envoi:', error);
         resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
         resultDiv.textContent = 'Erreur lors de l\'envoi';
         resultDiv.classList.remove('hidden');
@@ -391,8 +404,9 @@ document.getElementById('messageForm').addEventListener('submit', async (e) => {
 let allMessages = [];
 
 // Fonction pour ouvrir un message
-function openMessage(index, message) {
-    allMessages = JSON.parse(document.getElementById('messages-data').dataset.messages || '[]');
+function openMessage(index, messageData) {
+    // Les données sont déjà passées depuis Jinja2, pas besoin de les reparser
+    const message = typeof messageData === 'string' ? JSON.parse(messageData) : messageData;
 
     // Marquer le message comme lu si nécessaire
     if (!message.read) {
@@ -489,19 +503,24 @@ async function loadUsers() {
 
 // Configurer l'interface des destinataires selon le statut utilisateur
 function setupRecipientInterface() {
+    console.log('Configuration interface - isAdmin:', isAdmin, 'availableUsers:', availableUsers);
     const adminField = document.getElementById('adminRecipientField');
     const userField = document.getElementById('userRecipientField');
 
     if (isAdmin) {
+        console.log('Affichage interface admin');
         adminField.classList.remove('hidden');
         userField.classList.add('hidden');
     } else {
+        console.log('Affichage interface utilisateur normal');
         adminField.classList.add('hidden');
         userField.classList.remove('hidden');
 
         // Pour les utilisateurs normaux, créer une liste déroulante avec les admins disponibles
         const userSelect = document.getElementById('userRecipientSelect');
+        console.log('userSelect element:', userSelect);
         if (userSelect && availableUsers.length > 0) {
+            console.log('Remplissage de la liste déroulante avec:', availableUsers);
             userSelect.innerHTML = '<option value="">Choisir un destinataire...</option>';
             availableUsers.forEach(user => {
                 const option = document.createElement('option');
@@ -509,6 +528,8 @@ function setupRecipientInterface() {
                 option.textContent = user;
                 userSelect.appendChild(option);
             });
+        } else {
+            console.log('Pas de userSelect ou pas d\'utilisateurs disponibles');
         }
     }
 }
