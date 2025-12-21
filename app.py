@@ -16,6 +16,9 @@ import hashlib
 import time
 from datetime import datetime
 
+# Liste des administrateurs
+ADMINS = ['Urioxi', 'noemie.mrn21']
+
 load_dotenv()
 
 
@@ -205,11 +208,17 @@ def get_unread_count(username):
     messages = get_user_messages(username)
     return len([msg for msg in messages if not msg.get('read', False)])
 
-def send_message(from_user, to_user, subject, content, photo_id=None):
+def send_message(from_user, to_user, subject, content, photo_ids=None):
     """Envoie un message."""
     users = load_users()
     if to_user not in users:
         return False, "Destinataire non trouvé"
+
+    # Convertir photo_ids en liste si c'est une string
+    if isinstance(photo_ids, str) and photo_ids:
+        photo_ids = [pid.strip() for pid in photo_ids.split(',') if pid.strip()]
+    elif not photo_ids:
+        photo_ids = []
 
     messages = load_messages()
     message = {
@@ -218,7 +227,7 @@ def send_message(from_user, to_user, subject, content, photo_id=None):
         'to': to_user,
         'subject': subject,
         'content': content,
-        'photo_id': photo_id,
+        'photo_ids': photo_ids,
         'timestamp': datetime.now().isoformat(),
         'read': False
     }
@@ -252,13 +261,13 @@ def get_unique_visits_count():
     return len(stats['unique_visits'])
 
 
-def urioxi_required(f):
-    """Décorateur pour protéger les routes admin - accès limité exactement à 'Urioxi'."""
+def admin_required(f):
+    """Décorateur pour protéger les routes admin - accès limité aux administrateurs."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('user_logged_in'):
             return redirect(url_for('user_login'))
-        if session.get('username') != 'Urioxi':
+        if session.get('username') not in ADMINS:
             # Retourner une erreur 404 - la page n'existe pas pour les non-admin
             from flask import abort
             abort(404)
@@ -289,7 +298,7 @@ def logout():
     return redirect(url_for('index'))
 
 @app.route('/admin/stats')
-@urioxi_required
+@admin_required
 def admin_stats():
     """Page de statistiques admin."""
     gallery = load_gallery()
@@ -381,7 +390,7 @@ def add_photo():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/delete-photo/<photo_id>', methods=['DELETE'])
-@urioxi_required
+@admin_required
 def delete_photo(photo_id):
     """Supprime une photo de la galerie."""
     try:
@@ -393,7 +402,7 @@ def delete_photo(photo_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/update-photo/<photo_id>', methods=['PUT'])
-@urioxi_required
+@admin_required
 def update_photo(photo_id):
     """Met à jour les catégories et/ou la description d'une photo."""
     try:
@@ -416,7 +425,7 @@ def update_photo(photo_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/create-category', methods=['POST'])
-@urioxi_required
+@admin_required
 def create_category():
     """Crée une nouvelle catégorie (juste pour la liste, pas de modification de photos)."""
     try:
@@ -540,12 +549,12 @@ def send_message_route():
     to_user = request.form.get('to_user')
     subject = request.form.get('subject')
     content = request.form.get('content')
-    photo_id = request.form.get('photo_id')
+    photo_ids = request.form.get('photo_ids')
 
     if not to_user or not subject or not content:
         return jsonify({'success': False, 'error': 'Tous les champs sont requis'})
 
-    success, message = send_message(from_user, to_user, subject, content, photo_id)
+    success, message = send_message(from_user, to_user, subject, content, photo_ids)
     return jsonify({'success': success, 'message': message})
 
 @app.route('/api/messages/unread')
@@ -558,6 +567,28 @@ def get_unread_messages():
     unread_count = get_unread_count(username)
     return jsonify({'unread': unread_count})
 
+@app.route('/api/messages/mark-read', methods=['POST'])
+def mark_message_read():
+    """API pour marquer un message comme lu."""
+    if not session.get('user_logged_in'):
+        return jsonify({'success': False, 'error': 'Non connecté'})
+
+    username = session['username']
+    message_id = request.json.get('message_id')
+
+    if not message_id:
+        return jsonify({'success': False, 'error': 'ID de message requis'})
+
+    # Charger les messages et marquer comme lu
+    messages = load_messages()
+    for msg in messages:
+        if str(msg.get('id')) == str(message_id) and msg['to'] == username:
+            msg['read'] = True
+            save_messages(messages)
+            return jsonify({'success': True})
+
+    return jsonify({'success': False, 'error': 'Message non trouvé'})
+
 @app.route('/api/users')
 def get_users():
     """API pour récupérer la liste des utilisateurs disponibles pour l'envoi de messages."""
@@ -567,12 +598,12 @@ def get_users():
     current_username = session['username']
     users = load_users()
 
-    # Pour l'admin (Urioxi), retourner tous les utilisateurs sauf lui-même
-    if current_username == 'Urioxi':
+    # Pour les admins, retourner tous les utilisateurs sauf eux-mêmes
+    if current_username in ADMINS:
         available_users = [u for u in users.keys() if u != current_username]
     else:
-        # Pour les utilisateurs normaux, seulement Urioxi
-        available_users = ['Urioxi'] if 'Urioxi' in users else []
+        # Pour les utilisateurs normaux, seulement les admins
+        available_users = [admin for admin in ADMINS if admin in users and admin != current_username]
 
     return jsonify({'users': available_users})
 

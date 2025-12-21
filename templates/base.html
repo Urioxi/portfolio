@@ -32,7 +32,7 @@
                     <!-- Utilisateur connecté -->
                     {% if 'user_logged_in' in session %}
                     <div class="flex items-center gap-4">
-                        {% if session.username == 'Urioxi' %}
+                        {% if session.username == 'Urioxi' or session.username == 'noemie.mrn21' %}
                         <a href="{{ url_for('admin_stats') }}" class="text-purple-600 hover:text-purple-800 transition">Administration</a>
                         {% endif %}
 
@@ -100,7 +100,7 @@
                             Messagerie
                             <span id="mobileUnreadBadge" class="hidden ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full"></span>
                         </a>
-                        {% if session.username == 'Urioxi' %}
+                        {% if session.username == 'Urioxi' or session.username == 'noemie.mrn21' %}
                         <a href="{{ url_for('admin_stats') }}" class="text-purple-600 hover:text-purple-800 transition px-2 py-2 rounded hover:bg-purple-50">Administration</a>
                         {% endif %}
                         <div class="px-2 py-1 text-gray-600 text-sm">{{ session.username }}</div>

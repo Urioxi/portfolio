@@ -3,6 +3,8 @@
 {% block title %}Messagerie - Portfolio Photos{% endblock %}
 
 {% block content %}
+<!-- Données des messages pour JavaScript -->
+<div id="messages-data" data-messages="{{ messages | tojson }}" style="display: none;"></div>
     <div class="container mx-auto px-4 py-8">
         <div class="max-w-6xl mx-auto">
             <div class="flex justify-between items-center mb-6">
@@ -18,7 +20,8 @@
                     {% if messages %}
                     <div class="space-y-4">
                         {% for message in messages %}
-                        <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                        <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer message-item"
+                             onclick="openMessage({{ loop.index0 }}, {{ message | tojson }})">
                             <div class="flex justify-between items-start mb-2">
                                 <div>
                                     <span class="font-medium text-gray-800">De: {{ message.from }}</span>
@@ -32,11 +35,14 @@
                             </div>
                             <h3 class="font-medium text-gray-800 mb-2">{{ message.subject }}</h3>
                             <p class="text-gray-600 mb-3">{{ message.content[:100] }}{% if message.content|length > 100 %}...{% endif %}</p>
-                            {% if message.photo_id %}
+                            {% if message.photo_ids and message.photo_ids|length > 0 %}
                             <div class="mt-2">
-                                <span class="text-sm text-blue-600">Photo attachée</span>
+                                <span class="text-sm text-blue-600">📎 {{ message.photo_ids|length }} photo(s) attachée(s)</span>
                             </div>
                             {% endif %}
+                            <div class="text-right mt-2">
+                                <span class="text-blue-600 text-sm hover:text-blue-800">Cliquer pour ouvrir →</span>
+                            </div>
                         </div>
                         {% endfor %}
                     </div>
@@ -67,10 +73,11 @@
                             </div>
                             <!-- Champ pour utilisateurs normaux -->
                             <div class="hidden" id="userRecipientField">
-                                <input type="text" value="Urioxi" disabled
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed">
-                                <input type="hidden" id="to_user_normal" name="to_user" value="Urioxi">
-                                <p class="text-xs text-gray-500 mt-1">Vous ne pouvez envoyer des messages qu'à l'administrateur</p>
+                                <select id="userRecipientSelect" name="to_user" required
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <!-- Options seront ajoutées dynamiquement -->
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Vous pouvez envoyer des messages aux administrateurs</p>
                             </div>
                         </div>
 
@@ -92,7 +99,7 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Photo à attacher (optionnel)
+                                Photos à attacher (optionnel)
                             </label>
                             <div id="photoDropZone"
                                  class="w-full p-6 border-2 border-dashed border-gray-300 rounded-md text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
@@ -102,12 +109,12 @@
                                     </svg>
                                 </div>
                                 <p class="text-sm text-gray-600">
-                                    Glissez-déposez une photo ici ou <span class="text-blue-600 font-medium">cliquez pour sélectionner</span>
+                                    Glissez-déposez des photos ici ou <span class="text-blue-600 font-medium">cliquez pour sélectionner</span>
                                 </p>
                                 <p id="selectedFileName" class="text-xs text-gray-500 mt-1 hidden"></p>
                             </div>
-                            <input type="file" id="photoFile" name="photo_file" accept="image/*" class="hidden">
-                            <input type="hidden" id="photo_id" name="photo_id" value="">
+                            <input type="file" id="photoFile" name="photo_files" accept="image/*" multiple class="hidden">
+                            <input type="hidden" id="photo_ids" name="photo_ids" value="">
                         </div>
 
                         <button type="submit"
@@ -118,6 +125,100 @@
 
                     <div id="messageResult" class="mt-4 hidden">
                         <!-- Résultat de l'envoi -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal pour lire/répondre aux messages -->
+            <div id="messageModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+                <div class="flex items-center justify-center min-h-screen p-4">
+                    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                        <div class="flex justify-between items-center p-6 border-b">
+                            <h3 class="text-xl font-semibold text-gray-800" id="modalSubject"></h3>
+                            <button onclick="closeMessageModal()" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="p-6 overflow-y-auto max-h-[60vh]">
+                            <!-- Message original -->
+                            <div class="mb-6">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <span class="font-medium text-gray-800">De: <span id="modalFrom"></span></span>
+                                        <span class="text-gray-500 text-sm ml-4" id="modalTimestamp"></span>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-gray-700 whitespace-pre-wrap" id="modalContent"></p>
+                                    <div id="modalPhoto" class="mt-4 hidden">
+                                        <img id="modalPhotoImg" class="max-w-full h-auto rounded-lg" alt="Photo attachée">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Formulaire de réponse -->
+                            <div class="border-t pt-6">
+                                <h4 class="text-lg font-medium text-gray-800 mb-4">Répondre</h4>
+                                <form id="replyForm" class="space-y-4">
+                                    <input type="hidden" id="replyTo" name="to_user">
+                                    <input type="hidden" id="originalSubject" name="original_subject">
+
+                                    <div>
+                                        <label for="replySubject" class="block text-sm font-medium text-gray-700 mb-1">
+                                            Sujet
+                                        </label>
+                                        <input type="text" id="replySubject" name="subject" required
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    </div>
+
+                                    <div>
+                                        <label for="replyContent" class="block text-sm font-medium text-gray-700 mb-1">
+                                            Message
+                                        </label>
+                                        <textarea id="replyContent" name="content" rows="6" required
+                                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Photos à attacher (optionnel)
+                                        </label>
+                                        <div id="replyPhotoDropZone"
+                                             class="w-full p-4 border-2 border-dashed border-gray-300 rounded-md text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                                            <div class="text-gray-500 mb-2">
+                                                <svg class="mx-auto h-6 w-6 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                </svg>
+                                            </div>
+                                            <p class="text-sm text-gray-600">
+                                                Glissez-déposez des photos ici ou <span class="text-blue-600 font-medium">cliquez pour sélectionner</span>
+                                            </p>
+                                            <p id="replySelectedFiles" class="text-xs text-gray-500 mt-1 hidden"></p>
+                                        </div>
+                                        <input type="file" id="replyPhotoFile" name="photo_files" accept="image/*" multiple class="hidden">
+                                        <input type="hidden" id="replyPhotoIds" name="photo_ids" value="">
+                                    </div>
+
+                                    <div class="flex justify-end space-x-3">
+                                        <button type="button" onclick="closeMessageModal()"
+                                                class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
+                                            Annuler
+                                        </button>
+                                        <button type="submit"
+                                                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md">
+                                            Envoyer la réponse
+                                        </button>
+                                    </div>
+                                </form>
+
+                                <div id="replyResult" class="mt-4 hidden">
+                                    <!-- Résultat de l'envoi de la réponse -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -168,7 +269,7 @@
             const files = dt.files;
 
             if (files.length > 0) {
-                handleFile(files[0]);
+                handleFiles(files);
             }
         }
 
@@ -179,7 +280,7 @@
 
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
+                handleFiles(e.target.files);
             }
         });
 
@@ -194,65 +295,168 @@
                 return;
             }
 
-            // Afficher le nom du fichier
-            selectedFileName.textContent = `Fichier sélectionné: ${file.name}`;
-            selectedFileName.classList.remove('hidden');
-
             // Pour l'instant, on stocke juste le nom du fichier
             // Dans un vrai système, on uploaderait le fichier et récupérerait un ID
-            photoIdInput.value = file.name;
+            const currentIds = photoIdInput.value ? photoIdInput.value.split(',') : [];
+            currentIds.push(file.name);
+            photoIdInput.value = currentIds.join(',');
+
+            updateSelectedFilesDisplay();
         }
 
-        // Gestionnaire d'envoi de message
-        document.getElementById('messageForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            // Validation supplémentaire pour s'assurer que to_user est défini
-            let toUserValue = '';
-            if (isAdmin) {
-                toUserValue = document.getElementById('to_user').value;
-            } else {
-                toUserValue = document.getElementById('to_user_normal').value;
-            }
-
-            if (!toUserValue.trim()) {
-                const resultDiv = document.getElementById('messageResult');
-                resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
-                resultDiv.textContent = 'Veuillez sélectionner un destinataire';
-                resultDiv.classList.remove('hidden');
-                return;
-            }
-
-            const formData = new FormData(e.target);
-            // S'assurer que to_user est dans le FormData
-            formData.set('to_user', toUserValue);
-
-            const resultDiv = document.getElementById('messageResult');
-
-            try {
-                const response = await fetch('/send-message', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                resultDiv.className = data.success ? 'mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded' : 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
-                resultDiv.textContent = data.message;
-                resultDiv.classList.remove('hidden');
-
-                if (data.success) {
-                    e.target.reset();
-                    setTimeout(() => {
-                        location.reload();
-                    }, 2000);
+        async function handleFiles(files) {
+            const validFiles = [];
+            for (let file of files) {
+                if (!file.type.startsWith('image/')) {
+                    alert(`Le fichier ${file.name} n'est pas une image.`);
+                    continue;
                 }
-            } catch (error) {
-                resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
-                resultDiv.textContent = 'Erreur lors de l\'envoi';
-                resultDiv.classList.remove('hidden');
+                if (file.size > 10 * 1024 * 1024) { // 10MB max
+                    alert(`Le fichier ${file.name} est trop volumineux (maximum 10MB).`);
+                    continue;
+                }
+                validFiles.push(file);
             }
+
+            if (validFiles.length > 0) {
+                const currentIds = photoIdInput.value ? photoIdInput.value.split(',') : [];
+                validFiles.forEach(file => currentIds.push(file.name));
+                photoIdInput.value = currentIds.join(',');
+                updateSelectedFilesDisplay();
+            }
+        }
+
+        function updateSelectedFilesDisplay() {
+            const ids = photoIdInput.value.split(',').filter(id => id.trim());
+            if (ids.length > 0) {
+                selectedFileName.textContent = `${ids.length} fichier(s) sélectionné(s): ${ids.join(', ')}`;
+                selectedFileName.classList.remove('hidden');
+            } else {
+                selectedFileName.classList.add('hidden');
+            }
+        }
+
+// Gestionnaire d'envoi de message
+document.getElementById('messageForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // Validation supplémentaire pour s'assurer que to_user est défini
+    let toUserValue = '';
+    if (isAdmin) {
+        toUserValue = document.getElementById('to_user').value;
+    } else {
+        toUserValue = document.getElementById('userRecipientSelect').value;
+    }
+
+    if (!toUserValue.trim()) {
+        const resultDiv = document.getElementById('messageResult');
+        resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
+        resultDiv.textContent = 'Veuillez sélectionner un destinataire';
+        resultDiv.classList.remove('hidden');
+        return;
+    }
+
+    const formData = new FormData(e.target);
+    // S'assurer que to_user est dans le FormData
+    formData.set('to_user', toUserValue);
+
+    const resultDiv = document.getElementById('messageResult');
+
+    try {
+        const response = await fetch('/send-message', {
+            method: 'POST',
+            body: formData
         });
+
+        const data = await response.json();
+
+        resultDiv.className = data.success ? 'mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded' : 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
+        resultDiv.textContent = data.message;
+        resultDiv.classList.remove('hidden');
+
+        if (data.success) {
+            e.target.reset();
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        }
+    } catch (error) {
+        resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
+        resultDiv.textContent = 'Erreur lors de l\'envoi';
+        resultDiv.classList.remove('hidden');
+    }
+});
+
+// Variables pour stocker les messages
+let allMessages = [];
+
+// Fonction pour ouvrir un message
+function openMessage(index, message) {
+    allMessages = JSON.parse(document.getElementById('messages-data').dataset.messages || '[]');
+
+    // Marquer le message comme lu si nécessaire
+    if (!message.read) {
+        markMessageAsRead(message.id);
+    }
+
+    // Remplir la modal
+    document.getElementById('modalSubject').textContent = message.subject;
+    document.getElementById('modalFrom').textContent = message.from;
+    document.getElementById('modalTimestamp').textContent = `${message.timestamp.slice(0, 10)} à ${message.timestamp.slice(11, 16)}`;
+    document.getElementById('modalContent').textContent = message.content;
+
+    // Préparer le sujet de réponse
+    const replySubject = message.subject.startsWith('Re: ') ? message.subject : `Re: ${message.subject}`;
+    document.getElementById('replySubject').value = replySubject;
+    document.getElementById('replyTo').value = message.from;
+    document.getElementById('originalSubject').value = message.subject;
+
+    // Afficher les photos si elles existent
+    if (message.photo_ids && message.photo_ids.length > 0) {
+        const photoContainer = document.getElementById('modalPhoto');
+        const photoImg = document.getElementById('modalPhotoImg');
+
+        // Pour l'instant, on affiche seulement la première photo
+        // TODO: Implémenter un carousel pour plusieurs photos
+        photoContainer.classList.remove('hidden');
+        // Simuler l'URL de la photo (à remplacer par la vraie logique)
+        // photoImg.src = `/api/photos/${message.photo_ids[0]}`;
+        photoImg.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIiBmaWxsPSIjOTk5Ij5QaG90byBQbGFjZWhvbGRlcjwvdGV4dD48L3N2Zz4=';
+        photoImg.alt = `Photo: ${message.photo_ids[0]}`;
+    } else {
+        document.getElementById('modalPhoto').classList.add('hidden');
+    }
+
+    // Afficher la modal
+    document.getElementById('messageModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+// Fonction pour fermer la modal
+function closeMessageModal() {
+    document.getElementById('messageModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+
+    // Réinitialiser le formulaire de réponse
+    document.getElementById('replyForm').reset();
+    document.getElementById('replySelectedFiles').classList.add('hidden');
+    document.getElementById('replyResult').classList.add('hidden');
+}
+
+// Fonction pour marquer un message comme lu
+async function markMessageAsRead(messageId) {
+    try {
+        await fetch('/api/messages/mark-read', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message_id: messageId })
+        });
+    } catch (error) {
+        console.error('Erreur lors du marquage du message comme lu:', error);
+    }
+}
 
 // Liste des utilisateurs disponibles
 let availableUsers = [];
@@ -266,7 +470,9 @@ async function loadUsers() {
         const currentUsername = sessionData?.dataset?.currentUsername || '';
 
         console.log('Current username:', currentUsername); // Debug
-        isAdmin = (currentUsername === 'Urioxi');
+        // Liste des administrateurs
+        const admins = ['Urioxi', 'noemie.mrn21'];
+        isAdmin = admins.includes(currentUsername);
 
         // Charger la liste des utilisateurs depuis l'API
         const response = await fetch('/api/users');
@@ -292,6 +498,18 @@ function setupRecipientInterface() {
     } else {
         adminField.classList.add('hidden');
         userField.classList.remove('hidden');
+
+        // Pour les utilisateurs normaux, créer une liste déroulante avec les admins disponibles
+        const userSelect = document.getElementById('userRecipientSelect');
+        if (userSelect && availableUsers.length > 0) {
+            userSelect.innerHTML = '<option value="">Choisir un destinataire...</option>';
+            availableUsers.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user;
+                option.textContent = user;
+                userSelect.appendChild(option);
+            });
+        }
     }
 }
 
@@ -358,5 +576,116 @@ function setupUserSearch() {
 
         // Charger les données au démarrage
         loadUsers();
+
+        // Gestion du drag & drop pour la réponse
+        const replyDropZone = document.getElementById('replyPhotoDropZone');
+        const replyFileInput = document.getElementById('replyPhotoFile');
+        const replySelectedFiles = document.getElementById('replySelectedFiles');
+        const replyPhotoIdsInput = document.getElementById('replyPhotoIds');
+
+        // Événements pour la zone de drop de réponse
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            replyDropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        // Style au survol pour la zone de réponse
+        ['dragenter', 'dragover'].forEach(eventName => {
+            replyDropZone.addEventListener(eventName, () => {
+                replyDropZone.classList.add('border-blue-500', 'bg-blue-50');
+                replyDropZone.classList.remove('border-gray-300');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            replyDropZone.addEventListener(eventName, () => {
+                replyDropZone.classList.remove('border-blue-500', 'bg-blue-50');
+                replyDropZone.classList.add('border-gray-300');
+            }, false);
+        });
+
+        // Gestion du drop pour la réponse
+        replyDropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleReplyFiles(files);
+            }
+        });
+
+        // Gestion du clic pour la réponse
+        replyDropZone.addEventListener('click', () => {
+            replyFileInput.click();
+        });
+
+        replyFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleReplyFiles(e.target.files);
+            }
+        });
+
+        function handleReplyFiles(files) {
+            const validFiles = [];
+            for (let file of files) {
+                if (!file.type.startsWith('image/')) {
+                    alert(`Le fichier ${file.name} n'est pas une image.`);
+                    continue;
+                }
+                if (file.size > 10 * 1024 * 1024) { // 10MB max
+                    alert(`Le fichier ${file.name} est trop volumineux (maximum 10MB).`);
+                    continue;
+                }
+                validFiles.push(file);
+            }
+
+            if (validFiles.length > 0) {
+                const currentIds = replyPhotoIdsInput.value ? replyPhotoIdsInput.value.split(',') : [];
+                validFiles.forEach(file => currentIds.push(file.name));
+                replyPhotoIdsInput.value = currentIds.join(',');
+                updateReplySelectedFilesDisplay();
+            }
+        }
+
+        function updateReplySelectedFilesDisplay() {
+            const ids = replyPhotoIdsInput.value.split(',').filter(id => id.trim());
+            if (ids.length > 0) {
+                replySelectedFiles.textContent = `${ids.length} fichier(s) sélectionné(s): ${ids.join(', ')}`;
+                replySelectedFiles.classList.remove('hidden');
+            } else {
+                replySelectedFiles.classList.add('hidden');
+            }
+        }
+
+        // Gestionnaire d'envoi de réponse
+        document.getElementById('replyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const resultDiv = document.getElementById('replyResult');
+
+            try {
+                const response = await fetch('/send-message', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                resultDiv.className = data.success ? 'mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded' : 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
+                resultDiv.textContent = data.message;
+                resultDiv.classList.remove('hidden');
+
+                if (data.success) {
+                    e.target.reset();
+                    setTimeout(() => {
+                        closeMessageModal();
+                        location.reload();
+                    }, 2000);
+                }
+            } catch (error) {
+                resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
+                resultDiv.textContent = 'Erreur lors de l\'envoi';
+                resultDiv.classList.remove('hidden');
+            }
+        });
     </script>
 {% endblock %}
