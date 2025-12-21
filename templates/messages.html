@@ -21,7 +21,7 @@
                     <div class="space-y-4">
                         {% for message in messages %}
                         <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer message-item"
-                             onclick="openMessage({{ loop.index0 }}, {{ message | tojson }})">
+                             onclick="openMessage({{ loop.index0 }}, {{ message | tojson }})"
                             <div class="flex justify-between items-start mb-2">
                                 <div>
                                     <span class="font-medium text-gray-800">De: {{ message.from }}</span>
