@@ -1,13 +1,15 @@
-// Gestion du drag & drop pour les photos
-const dropZone = document.getElementById('photoDropZone');
-const fileInput = document.getElementById('photoFile');
-const selectedFileName = document.getElementById('selectedFileName');
-const photoIdsInput = document.getElementById('photo_ids');
+// Messages page JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestion du drag & drop pour les photos
+    const dropZone = document.getElementById('photoDropZone');
+    const fileInput = document.getElementById('photoFile');
+    const selectedFileName = document.getElementById('selectedFileName');
+    const photoIdsInput = document.getElementById('photo_ids');
 
-// Événements pour la zone de drop
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, preventDefaults, false);
-});
+    // Événements pour la zone de drop
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
 
 function preventDefaults(e) {
     e.preventDefault();
@@ -498,4 +500,5 @@ document.getElementById('replyForm').addEventListener('submit', async (e) => {
         resultDiv.textContent = 'Erreur lors de l\'envoi';
         resultDiv.classList.remove('hidden');
     }
+    });
 });

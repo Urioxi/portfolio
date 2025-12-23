@@ -1,8 +1,9 @@
 // Gallery-specific JavaScript
-let allPhotos = [];
-let currentPhoto = null;
+document.addEventListener('DOMContentLoaded', function() {
+    let allPhotos = [];
+    let currentPhoto = null;
 
-function openModal(photo) {
+    function openModal(photo) {
     currentPhoto = photo;
     const modal = document.getElementById('photoModal');
     const modalImage = document.getElementById('modalImage');
@@ -177,5 +178,6 @@ document.addEventListener('click', (e) => {
 });
 
 // Chargement initial
-loadCategories();
-loadGallery();
+    loadCategories();
+    loadGallery();
+});

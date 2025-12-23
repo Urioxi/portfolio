@@ -37,11 +37,6 @@
                                 {% endif %}
                             </div>
                             <h3 class="font-medium text-gray-800 mb-2">{{ message.subject }}</h3>
-                            {% if message.photo_ids and message.photo_ids|length > 0 %}
-                            <div class="mt-2">
-                                <span class="text-sm text-blue-600">{{ message.photo_ids|length }} photo(s) attachée(s)</span>
-                            </div>
-                            {% endif %}
                             <div class="text-right mt-2">
                                 <span class="text-blue-600 text-sm hover:text-blue-800">Cliquer pour ouvrir →</span>
                             </div>

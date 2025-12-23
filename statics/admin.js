@@ -1,5 +1,6 @@
 // Admin-specific JavaScript
-async function createCategory() {
+document.addEventListener('DOMContentLoaded', function() {
+    async function createCategory() {
     const input = document.getElementById('newCategoryInput');
     const status = document.getElementById('categoryStatus');
     const name = input.value.trim();
@@ -211,4 +212,5 @@ async function uploadImage() {
     } finally {
         btn.disabled = false;
     }
-}
+    });
+});

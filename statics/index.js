@@ -1,10 +1,11 @@
 // Index page-specific JavaScript
-let currentPhoto = null;
-let sliderPhotos = [];
-let currentSlideIndex = 0;
-let sliderInterval = null;
+document.addEventListener('DOMContentLoaded', function() {
+    let currentPhoto = null;
+    let sliderPhotos = [];
+    let currentSlideIndex = 0;
+    let sliderInterval = null;
 
-function initSlider() {
+    function initSlider() {
     const sliderImages = document.getElementById('sliderImages');
     const indicators = document.getElementById('sliderIndicators');
 
@@ -194,4 +195,5 @@ document.addEventListener('click', (e) => {
 });
 
 // Chargement initial
-loadGallery();
+    loadGallery();
+});
