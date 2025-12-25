@@ -1,4 +1,5 @@
 // Index page-specific JavaScript
+console.log('Script index.js charge...');
 
 // Variables globales pour le slider
 let sliderPhotos = [];
@@ -178,54 +179,55 @@ function closeFullscreen() {
 }
 
 
-async function loadGallery() {
+function loadGallery() {
     const galleryDiv = document.getElementById('gallery');
     if (!galleryDiv) {
-        console.error('Élément gallery non trouvé');
         return;
     }
 
-    galleryDiv.innerHTML = '<div class="col-span-full text-center text-gray-500">Chargement...</div>';
+    galleryDiv.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #6b7280;">Chargement...</div>';
 
     try {
-        const response = await fetch('/gallery');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const gallery = await response.json();
+        // Utiliser XMLHttpRequest au lieu de fetch pour la compatibilité
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', '/gallery', false); // Synchrone pour simplifier
+        xhr.send();
 
-        console.log('Galerie chargée:', gallery.length, 'photos');
+        if (xhr.status !== 200) {
+            throw new Error(`Erreur HTTP: ${xhr.status}`);
+        }
+
+        const gallery = JSON.parse(xhr.responseText);
 
         // Charger les 6 dernières photos pour le slider
-        sliderPhotos = gallery.slice(-6).reverse(); // Les plus récentes en premier
-        console.log('Photos pour le slider:', sliderPhotos.length);
+        sliderPhotos = gallery.slice(-6).reverse();
         initSlider();
 
         galleryDiv.innerHTML = '';
         if (!gallery.length) {
-            galleryDiv.innerHTML = '<div class="col-span-full text-center text-gray-500 py-8">Aucune photo pour le moment.</div>';
+            galleryDiv.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #6b7280; padding: 2rem 0;">Aucune photo pour le moment.</div>';
             return;
         }
 
         // Afficher les 4 premières photos
         const photosToShow = gallery.slice(0, 4);
-        photosToShow.forEach(photo => {
+
+        photosToShow.forEach((photo) => {
             if (!photo.url) {
-                console.warn('Photo sans URL:', photo);
                 return;
             }
 
             const div = document.createElement('div');
-            div.className = 'relative group overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer';
+            div.style.cssText = 'position: relative; overflow: hidden; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); cursor: pointer; transition: all 0.3s ease; width: 100%;';
             div.onclick = () => openModal(photo);
+            div.onmouseover = () => div.style.transform = 'translateY(-4px)';
+            div.onmouseout = () => div.style.transform = 'translateY(0)';
 
             const img = document.createElement('img');
             img.src = photo.url;
-            img.className = 'w-full h-64 object-cover';
+            img.style.cssText = 'width: 100%; height: 256px; object-fit: cover; display: block;';
             img.alt = photo.title || 'Photo portfolio';
-            img.loading = 'lazy';
             img.onerror = function() {
-                console.error('Erreur de chargement de l\'image:', photo.url);
                 this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIiBmaWxsPSIjOTk5Ij5FcnJldXIgZGUgY2hhcmdlbWVudDwvdGV4dD48L3N2Zz4=';
             };
 
@@ -233,12 +235,21 @@ async function loadGallery() {
             galleryDiv.appendChild(div);
         });
     } catch (error) {
-        console.error('Erreur lors du chargement de la galerie:', error);
-        galleryDiv.innerHTML = '<div class="col-span-full text-center text-red-600 py-8">Impossible de charger la galerie: ' + error.message + '</div>';
+        galleryDiv.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #dc2626; padding: 2rem 0;">Impossible de charger la galerie.</div>';
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+// Appeler directement loadGallery (sera exécuté à la fin du chargement du script)
+setTimeout(function() {
+    console.log('JavaScript charge, appel de loadGallery...');
+
+    // Indicateur de test
+    const testDiv = document.createElement('div');
+    testDiv.style.cssText = 'position: fixed; top: 50px; right: 10px; background: blue; color: white; padding: 5px; border-radius: 3px; font-size: 12px; z-index: 9999;';
+    testDiv.textContent = 'JS loaded';
+    document.body.appendChild(testDiv);
+    setTimeout(() => testDiv.remove(), 2000);
+
     // Fermer le modal en cliquant en dehors
     document.addEventListener('click', (e) => {
         const modal = document.getElementById('photoModal');
@@ -249,4 +260,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Chargement initial
     loadGallery();
-});
+}, 100);

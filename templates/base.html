@@ -16,7 +16,6 @@
          data-current-username="{% if 'user_logged_in' in session %}{{ session.username }}{% endif %}"
          style="display: none;"></div>
 
-    <div class="flex flex-col min-h-screen">
     <!-- Header -->
     <header class="bg-white shadow-md sticky top-0 z-[100] w-full flex-shrink-0">
         <nav class="container mx-auto px-4 py-4">
@@ -126,14 +125,13 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-gray-800 text-white flex-shrink-0 mt-auto">
+    <footer class="bg-gray-800 text-white flex-shrink-0" id="footer">
         <div class="container mx-auto px-4 py-6">
             <div class="flex flex-col md:flex-row justify-between items-center">
                 <p class="text-gray-400 mb-4 md:mb-0">&copy; 2025 Portfolio Photos. Tous droits réservés.</p>
             </div>
         </div>
     </footer>
-    </div>
 
     <script src="{{ url_for('static', filename='base.js') }}"></script>
     {% block scripts %}{% endblock %}

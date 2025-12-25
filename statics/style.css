@@ -123,3 +123,7 @@ html {
         min-width: 44px;
     }
 }
+
+#footer {
+    margin-bottom : 0px;
+}
