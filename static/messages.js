@@ -73,10 +73,15 @@ function updateSelectedFilesDisplay(photoIdsInput, selectedFileName) {
 }
 
 // Fonctions globales pour la messagerie
-function openMessage(index) {
+function openMessage(messageId) {
     const messagesData = document.getElementById('messages-data');
     const messages = JSON.parse(messagesData.dataset.messages);
-    const message = messages[index];
+
+    const message = messages.find(msg => msg.id === messageId);
+    if (!message) {
+        console.error('Message not found with ID:', messageId);
+        return;
+    }
 
     if (!message.read) {
         markMessageAsRead(message.id);
@@ -436,9 +441,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.querySelectorAll('.message-item').forEach(item => {
+        const messageId = item.dataset.messageId;
         item.addEventListener('click', function() {
-            const index = parseInt(this.dataset.messageIndex);
-            openMessage(index);
+            openMessage(messageId);
         });
     });
 

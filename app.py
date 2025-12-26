@@ -643,7 +643,7 @@ def get_users():
         available_users = [u for u in users.keys() if u != current_username]
     else:
         # Pour les utilisateurs normaux, seulement les admins
-        available_users = [admin for admin in ADMINS if admin in users and admin != current_username]
+        available_users = [admin for admin in ADMINS if admin != current_username]
 
     return jsonify({'users': available_users})
 
