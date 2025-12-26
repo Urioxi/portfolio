@@ -81,7 +81,7 @@ html {
     }
 
     /* Espacement pour éviter la barre des tâches */
-    body {
+    html {
         padding-bottom: env(safe-area-inset-bottom);
     }
 
@@ -106,7 +106,7 @@ html {
 
 /* Safe area pour appareils avec encoches */
 @supports (padding: max(0px)) {
-    body {
+    html {
         padding-bottom: max(1rem, env(safe-area-inset-bottom));
     }
 
@@ -125,5 +125,24 @@ html {
 }
 
 #footer {
-    margin-bottom : 0px;
+    margin-bottom: 0px !important;
+    margin-top: 0px !important;
+}
+
+/* Force footer to stick to bottom */
+html, body {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+#footer {
+    margin-top: auto;
 }
