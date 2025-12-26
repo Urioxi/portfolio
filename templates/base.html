@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Portfolio Photos{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('statics', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="icon" href="data:,">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -133,7 +133,7 @@
         </div>
     </footer>
 
-    <script src="{{ url_for('statics', filename='base.js') }}"></script>
+    <script src="{{ url_for('static', filename='base.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

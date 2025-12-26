@@ -23,18 +23,28 @@ ADMINS = ['Urioxi', 'noemie.mrn21']
 load_dotenv()
 
 
-app = Flask(__name__, static_folder='statics', template_folder='templates')
+app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 CORS(app)
 
 # Mot de passe admin (défini dans .env, valeur par défaut pour dev)
 ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
-# Config Cloudinary
-cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
-    api_key=os.getenv('CLOUDINARY_API_KEY'),
-    api_secret=os.getenv('CLOUDINARY_API_SECRET')
-)
+
+# Config Cloudinary (seulement si les variables sont définies)
+cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME')
+api_key = os.getenv('CLOUDINARY_API_KEY')
+api_secret = os.getenv('CLOUDINARY_API_SECRET')
+
+if cloud_name and api_key and api_secret:
+    cloudinary.config(
+        cloud_name=cloud_name,
+        api_key=api_key,
+        api_secret=api_secret
+    )
+    CLOUDINARY_CONFIGURED = True
+else:
+    print("WARNING: Cloudinary non configure - mode degrade active")
+    CLOUDINARY_CONFIGURED = False
 # Définir le répertoire de données en fonction de l'environnement
 GALLERY_FILE = 'data.json'
 STATS_FILE = 'stats.json'
@@ -328,6 +338,9 @@ def admin_stats():
 @app.route('/get-signature', methods=['GET'])
 def get_signature():
     """Génère une signature Cloudinary pour l'upload direct depuis le navigateur."""
+    if not CLOUDINARY_CONFIGURED:
+        return jsonify({'error': 'Cloudinary non configuré'}), 500
+
     try:
         cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME')
         api_key = os.getenv('CLOUDINARY_API_KEY')
@@ -364,6 +377,9 @@ def get_signature():
 @app.route('/add-photo', methods=['POST'])
 def add_photo():
     """Ajoute une photo à la galerie après upload direct vers Cloudinary."""
+    if not CLOUDINARY_CONFIGURED:
+        return jsonify({'error': 'Cloudinary non configuré'}), 500
+
     try:
         data = request.json
         public_id = data.get('public_id')
@@ -618,6 +634,9 @@ def get_users():
 @app.route('/rebuild-gallery', methods=['POST'])
 def rebuild_gallery():
     """Reconstruit la galerie depuis toutes les images dans le dossier portfolio/ sur Cloudinary."""
+    if not CLOUDINARY_CONFIGURED:
+        return jsonify({'error': 'Cloudinary non configuré'}), 500
+
     try:
         # Récupérer toutes les images du dossier portfolio/
         result = cloudinary.api.resources(
