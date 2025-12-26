@@ -6,6 +6,8 @@ let allPhotos = [];
 // Fonction pour uploader une image directement vers Cloudinary
 async function uploadImage() {
     const fileInput = document.getElementById('imageInput');
+    const titleInput = document.getElementById('titleInput');
+    const descriptionInput = document.getElementById('descriptionInput');
     const categoryInput = document.getElementById('categoryInput');
     const statusDiv = document.getElementById('status');
 
@@ -60,6 +62,8 @@ async function uploadImage() {
             body: JSON.stringify({
                 public_id: cloudinaryData.public_id,
                 created_at: cloudinaryData.created_at,
+                title: titleInput.value.trim(),
+                description: descriptionInput.value.trim(),
                 category: categoryInput.value
             })
         });
@@ -68,6 +72,8 @@ async function uploadImage() {
             statusDiv.textContent = 'Image ajoutée avec succès !';
             statusDiv.className = 'text-sm text-green-600 mt-2';
             fileInput.value = '';
+            titleInput.value = '';
+            descriptionInput.value = '';
             // Recharger la page pour voir la nouvelle image
             setTimeout(() => location.reload(), 1500);
         } else {

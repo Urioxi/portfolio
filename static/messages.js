@@ -31,6 +31,8 @@ async function handleFile(file, photoIdsInput, selectedFileName) {
         return;
     }
 
+    // Pour les messages, on stocke temporairement le nom du fichier
+    // Le serveur devra gérer l'upload des fichiers attachés différemment
     const currentIds = photoIdsInput.value ? photoIdsInput.value.split(',') : [];
     currentIds.push(file.name);
     photoIdsInput.value = currentIds.join(',');
@@ -170,11 +172,11 @@ function setupRecipientInterface() {
     const userField = document.getElementById('userRecipientField');
 
     if (isAdmin) {
-        adminField.classList.remove('hidden');
-        userField.classList.add('hidden');
+        if (adminField) adminField.classList.remove('hidden');
+        if (userField) userField.classList.add('hidden');
     } else {
-        adminField.classList.add('hidden');
-        userField.classList.remove('hidden');
+        if (adminField) adminField.classList.add('hidden');
+        if (userField) userField.classList.remove('hidden');
 
         const userSelect = document.getElementById('userRecipientSelect');
         if (userSelect && availableUsers.length > 0) {
@@ -208,6 +210,14 @@ function setupUserSearch() {
             return;
         }
 
+        // Vérifier si le texte tapé correspond exactement à un utilisateur
+        const exactMatch = availableUsers.find(user => user.toLowerCase() === query);
+        if (exactMatch) {
+            hiddenInput.value = exactMatch;
+        } else {
+            hiddenInput.value = '';
+        }
+
         const matches = availableUsers.filter(user =>
             user.toLowerCase().includes(query)
         ).slice(0, 5);
@@ -239,9 +249,20 @@ function setupUserSearch() {
     searchInput.addEventListener('keydown', function(event) {
         if (event.key === 'Enter') {
             event.preventDefault();
-            const firstSuggestion = suggestionsDiv.querySelector('div');
-            if (firstSuggestion) {
-                firstSuggestion.click();
+            const query = this.value.toLowerCase().trim();
+
+            // Chercher un match exact d'abord
+            const exactMatch = availableUsers.find(user => user.toLowerCase() === query);
+            if (exactMatch) {
+                searchInput.value = exactMatch;
+                hiddenInput.value = exactMatch;
+                suggestionsDiv.classList.add('hidden');
+            } else {
+                // Sinon utiliser la première suggestion
+                const firstSuggestion = suggestionsDiv.querySelector('div');
+                if (firstSuggestion) {
+                    firstSuggestion.click();
+                }
             }
         }
     });
@@ -253,6 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('photoFile');
     const selectedFileName = document.getElementById('selectedFileName');
     const photoIdsInput = document.getElementById('photo_ids');
+
 
     if (dropZone) {
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -287,7 +309,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Gestionnaire d'envoi de message
-    document.getElementById('messageForm').addEventListener('submit', async (e) => {
+    const messageForm = document.getElementById('messageForm');
+    if (messageForm) {
+        messageForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         let toUserValue = '';
@@ -303,6 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
             resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded';
             resultDiv.textContent = 'Veuillez sélectionner un destinataire';
             resultDiv.classList.remove('hidden');
+            console.log('Erreur: Aucun destinataire sélectionné');
             return;
         }
 

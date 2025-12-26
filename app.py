@@ -384,11 +384,13 @@ def add_photo():
         data = request.json
         public_id = data.get('public_id')
         uploaded_at = data.get('created_at', '')
+        title = data.get('title', '').strip()
+        description = data.get('description', '').strip()
         category = data.get('category', 'Non catégorisé')
-        
+
         if not public_id:
             return jsonify({'error': 'public_id manquant'}), 400
-        
+
         # Ajout à la galerie
         gallery = load_gallery()
         new_photo = {
@@ -397,8 +399,8 @@ def add_photo():
             'url': cloudinary.CloudinaryImage(public_id).build_url(secure=True),
             'uploaded_at': uploaded_at,
             'categories': [category] if category else ['Non catégorisé'],
-            'description': '',
-            'title': ''
+            'description': description,
+            'title': title
         }
         gallery.append(new_photo)
         save_gallery(gallery)
@@ -469,8 +471,22 @@ def get_gallery():
     gallery = load_gallery()
     
     if category:
-        # Support ancien et nouveau format
-        gallery = [p for p in gallery if category in (p.get('categories') or [p.get('category')] if p.get('category') else [])]
+        filtered_gallery = []
+        for photo in gallery:
+            # Support ancien format (category: string) et nouveau format (categories: list)
+            photo_categories = []
+            if photo.get('categories'):
+                # Nouveau format : liste de catégories
+                photo_categories = photo['categories'] if isinstance(photo['categories'], list) else [photo['categories']]
+            elif photo.get('category'):
+                # Ancien format : une seule catégorie
+                photo_categories = [photo['category']]
+
+            # Vérifier si la catégorie recherchée est dans les catégories de la photo
+            if category in photo_categories:
+                filtered_gallery.append(photo)
+
+        gallery = filtered_gallery
     
     return jsonify(gallery)
 
